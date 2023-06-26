@@ -1,0 +1,75 @@
+<div class="container">
+  <h2>Video to Audio Extraction</h2>
+  <input type="file" id="videoFile" accept="video/mp4">
+  <br><br>
+  <button onclick="uploadVideo()">Extract Audio</button>
+  <button onclick="extractText()" id="extractTextButton" style="display: none;">Extract Text</button>
+  <br><br>
+  <div id="loading" style="display: none;">
+    <p>Extracting audio...</p>
+    <img src="{{ url_for('static', filename='loading.gif') }}" alt="Loading">
+  </div>
+  <div id="result" style="display: none;">
+    <p id="message"></p>
+    <a id="audioLink" href="" download>Download Audio</a>
+    <br><br>
+    <h3>Extracted Text:</h3>
+    <p id="extractedText" style="white-space: pre-wrap;"></p>
+  </div>
+</div>
+
+<script>
+  // Function to extract text from the audio
+  function extractText() {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/extract-text');
+    xhr.onloadstart = function() {
+      document.getElementById('loading').style.display = 'block';
+    };
+    xhr.onloadend = function() {
+      document.getElementById('loading').style.display = 'none';
+    };
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+        var response = JSON.parse(xhr.responseText);
+        if (response.error) {
+          document.getElementById('message').innerHTML = response.error;
+        } else {
+          document.getElementById('message').innerHTML = response.message;
+          document.getElementById('extractedText').textContent = response.extracted_text;
+        }
+      }
+    };
+    xhr.send();
+  }
+
+  // Function to handle the video file upload and audio extraction
+  function uploadVideo() {
+    var videoFile = document.getElementById('videoFile').files[0];
+    var formData = new FormData();
+    formData.append('file', videoFile);
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/extract-audio');
+    xhr.onloadstart = function() {
+      document.getElementById('loading').style.display = 'block';
+    };
+    xhr.onloadend = function() {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('extractTextButton').style.display = 'inline-block';
+    };
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+        var response = JSON.parse(xhr.responseText);
+        if (response.error) {
+          document.getElementById('message').innerHTML = response.error;
+        } else {
+          document.getElementById('message').innerHTML = response.message;
+          document.getElementById('audioLink').href = response.audio_link;
+          document.getElementById('result').style.display = 'block';
+        }
+      }
+    };
+    xhr.send(formData);
+  }
+</script>
