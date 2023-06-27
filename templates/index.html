@@ -2,11 +2,10 @@
   <h2>Video to Audio Extraction</h2>
   <input type="file" id="videoFile" accept="video/mp4">
   <br><br>
-  <button onclick="uploadVideo()">Extract Audio</button>
-  <button onclick="extractText()" id="extractTextButton" style="display: none;">Extract Text</button>
+  <button onclick="uploadVideo()">Convert Video to Audio and Extract Text</button>
   <br><br>
   <div id="loading" style="display: none;">
-    <p>Extracting audio...</p>
+    <p>Converting video to audio...</p>
     <img src="{{ url_for('static', filename='loading.gif') }}" alt="Loading">
   </div>
   <div id="result" style="display: none;">
@@ -20,15 +19,10 @@
 
 <script>
   // Function to extract text from the audio
-  function extractText() {
+  function extractText(audioFilePath) {
     var xhr = new XMLHttpRequest();
     xhr.open('POST', '/extract-text');
-    xhr.onloadstart = function() {
-      document.getElementById('loading').style.display = 'block';
-    };
-    xhr.onloadend = function() {
-      document.getElementById('loading').style.display = 'none';
-    };
+    xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.onreadystatechange = function() {
       if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
         var response = JSON.parse(xhr.responseText);
@@ -40,7 +34,7 @@
         }
       }
     };
-    xhr.send();
+    xhr.send(JSON.stringify({ audio_filepath: audioFilePath }));
   }
 
   // Function to handle the video file upload and audio extraction
@@ -53,10 +47,11 @@
     xhr.open('POST', '/extract-audio');
     xhr.onloadstart = function() {
       document.getElementById('loading').style.display = 'block';
+      document.getElementById('result').style.display = 'none';
     };
     xhr.onloadend = function() {
       document.getElementById('loading').style.display = 'none';
-      document.getElementById('extractTextButton').style.display = 'inline-block';
+      document.getElementById('result').style.display = 'block';
     };
     xhr.onreadystatechange = function() {
       if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
@@ -66,7 +61,10 @@
         } else {
           document.getElementById('message').innerHTML = response.message;
           document.getElementById('audioLink').href = response.audio_link;
-          document.getElementById('result').style.display = 'block';
+          document.getElementById('audioLink').style.display = 'block';
+          document.getElementById('audioLink').textContent = 'Download Audio';
+          document.getElementById('audioLink').setAttribute('download', '');
+          extractText(response.audio_filepath); // Call the text extraction function
         }
       }
     };

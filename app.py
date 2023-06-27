@@ -2,8 +2,8 @@ from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 from moviepy.editor import VideoFileClip
 import os
+import threading
 import speech_recognition as sr
-from pydub import AudioSegment
 
 app = Flask(__name__)
 app.config['ALLOWED_EXTENSIONS'] = {'mp4'}
@@ -32,40 +32,34 @@ def extract_audio():
         temp_filepath = os.path.join(app.root_path, temp_filename)
         file.save(temp_filepath)
 
-        # Extract audio using moviepy
-        video = VideoFileClip(temp_filepath)
-        audio = video.audio
+        # Start audio extraction and text extraction threads
+        audio_thread = threading.Thread(target=convert_video_to_audio, args=(temp_filepath,))
+        audio_thread.start()
 
-        # Save the extracted audio in the same directory
-        output_filename = os.path.splitext(temp_filename)[0] + '.mp3'
-        output_filepath = os.path.join(app.root_path, output_filename)
-        audio.write_audiofile(output_filepath, codec='libmp3lame')  # Use 'libmp3lame' codec
-
-        # Clean up the temporary files
-        video.close()
-        audio.close()
-        os.remove(temp_filepath)
-
-        # Convert audio to text
-        converted_filepath = convert_audio_format(output_filepath)
-        text = convert_audio_to_text(converted_filepath)
-
-        # Save text in a .txt file in the same directory
-        text_filename = os.path.splitext(temp_filename)[0] + '.txt'
-        text_filepath = os.path.join(app.root_path, text_filename)
-        save_text_to_file(text, text_filepath)
-
-        # Return the path of the extracted text file
-        return jsonify({'message': 'Text extracted successfully', 'text_link': text_filepath})
+        # Return success message
+        return jsonify({'message': 'Conversion in progress'})
 
     return jsonify({'error': 'Invalid file format'})
 
-def convert_audio_format(audio_filepath):
-    # Convert audio file to WAV format
-    converted_filepath = os.path.splitext(audio_filepath)[0] + '.wav'
-    audio = AudioSegment.from_file(audio_filepath)
-    audio.export(converted_filepath, format='wav')
-    return converted_filepath
+def convert_video_to_audio(video_filepath):
+    # Extract audio using moviepy
+    video = VideoFileClip(video_filepath)
+    audio = video.audio
+
+    # Save the extracted audio as audio.wav in the same directory
+    output_filepath = os.path.join(app.root_path, 'audio.wav')
+    audio.write_audiofile(output_filepath)
+
+    # Clean up
+    video.close()
+    audio.close()
+
+    # Perform text extraction
+    text = convert_audio_to_text(output_filepath)
+
+    # Save text in a text.txt file in the same directory
+    text_filepath = os.path.join(app.root_path, 'text.txt')
+    save_text_to_file(text, text_filepath)
 
 def convert_audio_to_text(audio_filepath):
     r = sr.Recognizer()
